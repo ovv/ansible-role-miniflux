@@ -1,0 +1,59 @@
+---
+
+- name: Download
+  git:
+    repo: "{{ miniflux_git_url }}"
+    version: "{{ miniflux_version }}"
+    dest: /opt/miniflux
+    force: yes
+  register: miniflux_dl
+  notify: restart php
+
+- name: Requirements
+  apt:
+    pkg: "{{ item }}"
+    state: latest
+  with_items:
+    - sqlite3
+
+- name: Permissions
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0744
+    owner: miniflux
+  with_items:
+    - /opt/miniflux/data
+    - /opt/miniflux/data/favicons
+  register: miniflux_perm
+
+- name: Configure
+  template:
+    src: opt/miniflux/config.php
+    dest: /opt/miniflux/config.php
+  notify: restart php
+
+- name: Set cron
+  cron:
+    user: miniflux
+    name: miniflux_update
+    minute: '*/5'
+    job: cd /opt/miniflux && /usr/bin/php cronjob.php >/dev/null 2>&1
+
+- name: DB exists
+  stat:
+    path: /opt/miniflux/data/db.sqlite
+  register: miniflux_db
+
+- name: Check account
+  shell: |
+    sqlite3 /opt/miniflux/data/db.sqlite 'SELECT id FROM users WHERE username="{{ miniflux_user }}";'
+  register: miniflux_account
+  changed_when: miniflux_account.stdout != "1"
+  when: miniflux_db.stat.exists
+
+- name: Create account
+  shell: |
+    sqlite3 /opt/miniflux/data/db.sqlite 'UPDATE users SET username="{{ miniflux_user }}", password="{{ miniflux_password | password_hash('blowfish', miniflux_salt ) }}" WHERE id=1;'
+  register: miniflux_account_create
+  when: miniflux_account | changed and miniflux_db.stat.exists
