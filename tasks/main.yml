@@ -1,5 +1,14 @@
 ---
 
+- name: Requirements
+  apt:
+    pkg: "{{ item }}"
+    state: latest
+  with_items:
+    - sqlite3
+    - cron
+    - git
+
 - name: Download
   git:
     repo: "{{ miniflux_git_url }}"
@@ -8,13 +17,6 @@
     force: yes
   register: miniflux_dl
   notify: restart php
-
-- name: Requirements
-  apt:
-    pkg: "{{ item }}"
-    state: latest
-  with_items:
-    - sqlite3
 
 - name: Permissions
   file:
