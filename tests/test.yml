@@ -20,6 +20,7 @@
         working_dir: /opt/miniflux
 
     # pyslackers.nginx
+    ufw_enabled: False  # UFW not installed on Travis
     nginx_sites:
       miniflux:
         directory: /opt/miniflux
